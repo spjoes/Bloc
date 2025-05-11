@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import GameBoard from '../../../components/GameBoard';
@@ -436,7 +436,7 @@ export default function MultiplayerGameContent({ roomCode }: MultiplayerGameCont
                   <p className="text-2xl font-bold">{score}</p>
                 </div>
                 <div className="bg-gray-700 p-4 rounded-md text-center">
-                  <p className="text-sm text-gray-400">Opponent's Score</p>
+                  <p className="text-sm text-gray-400">Opponent&apos;s Score</p>
                   <p className="text-2xl font-bold">{opponentScore}</p>
                 </div>
               </div>

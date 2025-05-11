@@ -42,7 +42,6 @@ export default function MultiplayerGame() {
   const [gameStatus, setGameStatus] = useState<GameStatus>('loading');
   const [opponentBoard, setOpponentBoard] = useState<(number | null)[][]>(createEmptyBoard(8, 8));
   const [opponentScore, setOpponentScore] = useState<number>(0);
-  const [initialPieces] = useState<PieceType[]>([]);
   const [winnerName, setWinnerName] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState<string>('Connecting to game...');
@@ -90,6 +89,7 @@ export default function MultiplayerGame() {
           color: piece.color
         }));
         
+        // Just set the pieces directly
         setPieces(formattedPieces);
       } else {
         // If no pieces provided, generate our own
@@ -155,7 +155,6 @@ export default function MultiplayerGame() {
   
   // Handle piece drag start
   const handlePieceDragStart = (piece: PieceType, offsetX: number, offsetY: number) => {
-    const index = pieces.findIndex(p => p.id === piece.id);
     setCurrentDraggedPiece(piece);
     setGrabOffsetX(offsetX);
     setGrabOffsetY(offsetY);
@@ -470,7 +469,7 @@ export default function MultiplayerGame() {
                   <p className="text-2xl font-bold">{score}</p>
                 </div>
                 <div className="bg-gray-700 p-4 rounded-md text-center">
-                  <p className="text-sm text-gray-400">Opponent's Score</p>
+                  <p className="text-sm text-gray-400">Opponent&apos;s Score</p>
                   <p className="text-2xl font-bold">{opponentScore}</p>
                 </div>
               </div>

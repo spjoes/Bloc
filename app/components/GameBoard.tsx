@@ -22,7 +22,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
   board, 
   onCellClick, 
   onPieceDrop,
-  highlightDropZone = false,
   currentDraggedPiece = null,
   grabOffsetX = 0,
   grabOffsetY = 0,
