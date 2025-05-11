@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { PieceType } from '../components/GamePiece';
 
 // Create a persistent socket instance outside the hook to prevent recreation
 let socket: Socket | null = null;
@@ -96,7 +97,7 @@ export default function useSocket() {
       setError(`Game aborted. ${reason}`);
     }
     
-    function onGameStarted({ roomInfo }: { roomInfo: RoomInfo, initialPieces: any[] }) {
+    function onGameStarted({ roomInfo }: { roomInfo: RoomInfo, initialPieces: PieceType[] }) {
       console.log('Game started event received in useSocket hook:', roomInfo);
       // Update the room info with the playing state
       if (roomInfo) {

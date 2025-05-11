@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import GameBoard from '../../components/GameBoard';
 import GamePiece, { PieceType } from '../../components/GamePiece';
@@ -16,7 +15,6 @@ import {
 } from '../../lib/pieces';
 
 export default function SinglePlayerGame() {
-  const router = useRouter();
   const [board, setBoard] = useState<(number | null)[][]>([]);
   const [pieces, setPieces] = useState<PieceType[]>([]);
   const [selectedPieceIndex, setSelectedPieceIndex] = useState<number | null>(null);
@@ -93,11 +91,6 @@ export default function SinglePlayerGame() {
     setCurrentDraggedPiece(piece);
     setGrabOffsetX(offsetX);
     setGrabOffsetY(offsetY);
-  };
-
-  // Handle drag end
-  const handleDragEnd = () => {
-    setCurrentDraggedPiece(null);
   };
 
   // Add event listener for drag end

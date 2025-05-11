@@ -45,7 +45,7 @@ export default function HowToPlay() {
             <ul className="list-disc list-inside mt-2 space-y-1">
               <li>Compete against other players in real-time</li>
               <li>All players receive the same pieces</li>
-              <li>The player with the highest score when someone can't place a piece wins</li>
+              <li>The player with the highest score when someone can&apos;t place a piece wins</li>
             </ul>
           </section>
         </div>

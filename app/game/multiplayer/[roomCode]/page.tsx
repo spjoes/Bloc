@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import GameBoard from '../../../components/GameBoard';
@@ -33,7 +33,6 @@ export default function MultiplayerGame() {
   const [board, setBoard] = useState<(number | null)[][]>(createEmptyBoard(8, 8));
   const [pieces, setPieces] = useState<PieceType[]>([]);
   const [selectedPieceIndex, setSelectedPieceIndex] = useState<number | null>(null);
-  const [draggedPieceIndex, setDraggedPieceIndex] = useState<number | null>(null);
   const [currentDraggedPiece, setCurrentDraggedPiece] = useState<PieceType | null>(null);
   const [grabOffsetX, setGrabOffsetX] = useState<number>(0);
   const [grabOffsetY, setGrabOffsetY] = useState<number>(0);
@@ -43,7 +42,7 @@ export default function MultiplayerGame() {
   const [gameStatus, setGameStatus] = useState<GameStatus>('loading');
   const [opponentBoard, setOpponentBoard] = useState<(number | null)[][]>(createEmptyBoard(8, 8));
   const [opponentScore, setOpponentScore] = useState<number>(0);
-  const [initialPieces, setInitialPieces] = useState<PieceType[]>([]);
+  const [initialPieces] = useState<PieceType[]>([]);
   const [winnerName, setWinnerName] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState<string>('Connecting to game...');
@@ -71,7 +70,7 @@ export default function MultiplayerGame() {
   useEffect(() => {
     if (!socket) return;
     
-    function onGameStarted({ initialPieces, roomInfo }: { roomInfo: any, initialPieces: PieceType[] }) {
+    function onGameStarted({ initialPieces, roomInfo }: { roomInfo: Record<string, unknown>, initialPieces: PieceType[] }) {
       console.log('Game started event received', { 
         initialPieces, 
         roomInfo,
@@ -91,7 +90,6 @@ export default function MultiplayerGame() {
           color: piece.color
         }));
         
-        setInitialPieces(formattedPieces);
         setPieces(formattedPieces);
       } else {
         // If no pieces provided, generate our own
@@ -108,7 +106,7 @@ export default function MultiplayerGame() {
       }
     }
     
-    function onGameFinished({ winnerId, winnerName }: { winnerId: string, winnerName: string }) {
+    function onGameFinished({ winnerName }: { winnerName: string }) {
       setGameStatus('gameOver');
       setWinnerName(winnerName);
     }
@@ -158,29 +156,10 @@ export default function MultiplayerGame() {
   // Handle piece drag start
   const handlePieceDragStart = (piece: PieceType, offsetX: number, offsetY: number) => {
     const index = pieces.findIndex(p => p.id === piece.id);
-    setDraggedPieceIndex(index);
     setCurrentDraggedPiece(piece);
     setGrabOffsetX(offsetX);
     setGrabOffsetY(offsetY);
   };
-
-  // Handle drag end
-  const handleDragEnd = () => {
-    setCurrentDraggedPiece(null);
-  };
-
-  // Add event listener for drag end
-  useEffect(() => {
-    const handleGlobalDragEnd = () => {
-      setCurrentDraggedPiece(null);
-    };
-    
-    window.addEventListener('dragend', handleGlobalDragEnd);
-    
-    return () => {
-      window.removeEventListener('dragend', handleGlobalDragEnd);
-    };
-  }, []);
 
   // Handle piece drop on the board
   const handlePieceDrop = (pieceId: number, row: number, col: number) => {
@@ -237,7 +216,6 @@ export default function MultiplayerGame() {
       
       // Reset selected piece
       setSelectedPieceIndex(null);
-      setDraggedPieceIndex(null);
       setCurrentDraggedPiece(null);
       
       // Update score

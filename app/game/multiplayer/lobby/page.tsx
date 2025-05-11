@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import useSocket, { RoomInfo } from '../../../lib/useSocket';
+import useSocket from '../../../lib/useSocket';
 
 export default function MultiplayerLobby() {
   const router = useRouter();

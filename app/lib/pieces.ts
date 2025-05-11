@@ -1,4 +1,4 @@
-import GamePiece, { PieceType } from '../components/GamePiece';
+import { PieceType } from '../components/GamePiece';
 
 // Create an empty board
 export function createEmptyBoard(rows = 8, cols = 8): (number | null)[][] {
@@ -109,7 +109,7 @@ export function checkCompletedLines(board: (number | null)[][]): {
   }
   
   // Clear rows and columns
-  let clearedBoard = [...board.map(row => [...row])];
+  const clearedBoard = [...board.map(row => [...row])];
   
   // Clear rows
   for (const row of rowsCleared) {

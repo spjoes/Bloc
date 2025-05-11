@@ -29,7 +29,7 @@ export default function MultiplayerGameContent({ roomCode }: MultiplayerGameCont
   const [board, setBoard] = useState<(number | null)[][]>(createEmptyBoard());
   const [pieces, setPieces] = useState<PieceType[]>([]);
   const [selectedPieceIndex, setSelectedPieceIndex] = useState<number | null>(null);
-  const [draggedPieceIndex, setDraggedPieceIndex] = useState<number | null>(null);
+  const [, setDraggedPieceIndex] = useState<number | null>(null);
   const [currentDraggedPiece, setCurrentDraggedPiece] = useState<PieceType | null>(null);
   const [grabOffsetX, setGrabOffsetX] = useState<number>(0);
   const [grabOffsetY, setGrabOffsetY] = useState<number>(0);
@@ -47,7 +47,7 @@ export default function MultiplayerGameContent({ roomCode }: MultiplayerGameCont
   useEffect(() => {
     if (!socket) return;
     
-    function onGameStarted({ initialPieces }: { roomInfo: any, initialPieces: PieceType[] }) {
+    function onGameStarted({ initialPieces }: { roomInfo: Record<string, unknown>, initialPieces: PieceType[] }) {
       setGameStatus('playing');
       // Use the same pieces for all players
       if (initialPieces && initialPieces.length > 0) {
@@ -65,7 +65,7 @@ export default function MultiplayerGameContent({ roomCode }: MultiplayerGameCont
       }
     }
     
-    function onGameFinished({ winnerId, winnerName }: { winnerId: string, winnerName: string }) {
+    function onGameFinished({ winnerName }: { winnerId: string, winnerName: string }) {
       setGameStatus('gameOver');
       setWinnerName(winnerName);
     }
@@ -126,11 +126,6 @@ export default function MultiplayerGameContent({ roomCode }: MultiplayerGameCont
     setCurrentDraggedPiece(piece);
     setGrabOffsetX(offsetX);
     setGrabOffsetY(offsetY);
-  };
-
-  // Handle drag end
-  const handleDragEnd = () => {
-    setCurrentDraggedPiece(null);
   };
 
   // Add event listener for drag end
