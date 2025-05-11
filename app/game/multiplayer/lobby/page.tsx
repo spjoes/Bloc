@@ -12,7 +12,7 @@ export default function MultiplayerLobby() {
   const [isJoining, setIsJoining] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { isConnected, roomInfo, createRoom, joinRoom, toggleReady, startGame, leaveRoom } = useSocket();
+  const { socket, isConnected, isConnecting, roomInfo, error: socketError, createRoom, joinRoom, toggleReady, startGame, leaveRoom } = useSocket();
 
   // Check for username in localStorage
   useEffect(() => {
@@ -31,12 +31,27 @@ export default function MultiplayerLobby() {
     }
   }, [username]);
 
+  // Update local error state when socket error changes
+  useEffect(() => {
+    if (socketError) {
+      setError(socketError);
+    }
+  }, [socketError]);
+
   // Handle creating a new room
   const handleCreateRoom = async () => {
     if (!username.trim()) {
       setError('Please enter a username');
       return;
     }
+
+    if (!isConnected) {
+      setError('Not connected to the server. Please try again.');
+      return;
+    }
+
+    setError(null);
+    setIsJoining(true);
 
     try {
       const result = await createRoom(username);
@@ -49,6 +64,8 @@ export default function MultiplayerLobby() {
     } catch (err) {
       setError('Error creating room');
       console.error(err);
+    } finally {
+      setIsJoining(false);
     }
   };
 
@@ -64,11 +81,18 @@ export default function MultiplayerLobby() {
       return;
     }
 
+    if (!isConnected) {
+      setError('Not connected to the server. Please try again.');
+      return;
+    }
+
+    setError(null);
+    setIsJoining(true);
+
     try {
-      setIsJoining(true);
       const result = await joinRoom(roomCode, username);
       if (result.success) {
-        // Joined room successfully
+        // Room joined successfully
         setError(null);
       } else {
         setError(result.error || 'Failed to join room');
@@ -84,230 +108,193 @@ export default function MultiplayerLobby() {
   // Handle toggling ready status
   const handleToggleReady = async () => {
     try {
-      setError(null);
-      await toggleReady();
+      const result = await toggleReady();
+      if (!result.success) {
+        setError('Failed to update ready status');
+      }
     } catch (err) {
-      console.error('Error toggling ready status', err);
-      setError('Failed to update ready status');
+      setError('Error updating ready status');
+      console.error(err);
     }
   };
 
   // Handle starting the game (host only)
   const handleStartGame = () => {
-    setError(null);
-    
-    // Check if we can start the game
-    if (!roomInfo || roomInfo.players.length < 2) {
-      setError('Need at least 2 players to start');
-      return;
-    }
-    
-    if (!roomInfo.players.every(p => p.isReady)) {
-      setError('All players must be ready to start');
-      return;
-    }
-    
     setIsStarting(true);
-    try {
-      console.log('Requesting game start');
-      startGame();
-      // No need for the timeout - it's causing false negatives
-      // The useEffect for roomInfo.gameState will handle the redirect
-    } catch (err) {
-      console.error('Error starting game', err);
-      setError('Failed to start game');
+    if (!startGame()) {
+      setError('Failed to start the game');
       setIsStarting(false);
     }
   };
 
-  // Handle leaving the current room
+  // Handle leaving the room
   const handleLeaveRoom = () => {
     leaveRoom();
   };
 
-  // Check if current user is the host
-  const isHost = roomInfo?.players.find(p => p.isHost)?.id === 
-    roomInfo?.players.find(p => p.username === username)?.id;
-
-  // Check if all players are ready
-  const allPlayersReady = roomInfo?.players.every(p => p.isReady);
-
-  // Redirect to game if the game has started
-  useEffect(() => {
-    if (roomInfo?.gameState === 'playing') {
-      console.log('Game state changed to playing, redirecting to game room:', roomInfo.roomCode);
-      setIsStarting(false); // Reset starting state before navigating
-      router.push(`/game/multiplayer/${roomInfo.roomCode}`);
+  // Connection status indicator
+  const renderConnectionStatus = () => {
+    if (isConnecting) {
+      return <div className="text-yellow-500">Connecting to server...</div>;
+    } else if (isConnected) {
+      return <div className="text-green-500">Connected to server</div>;
+    } else {
+      return <div className="text-red-500">Not connected to server</div>;
     }
-  }, [roomInfo?.gameState, roomInfo?.roomCode, router]);
-  
-  // Effect to clear the starting state if it's been too long
-  useEffect(() => {
-    if (isStarting) {
-      const timer = setTimeout(() => {
-        setIsStarting(false);
-      }, 10000); // Reset after 10 seconds if not redirected
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isStarting]);
-
-  // Render Start Game button
-  const renderStartButton = () => {
-    if (!isHost) return null;
-    
-    const disabled = roomInfo!.players.length < 2 || !allPlayersReady || isStarting;
-    let buttonText = 'Start Game';
-    
-    if (isStarting) {
-      buttonText = 'Starting...';
-    } else if (roomInfo!.players.length < 2) {
-      buttonText = 'Need More Players';
-    } else if (!allPlayersReady) {
-      buttonText = 'Waiting for Ready';
-    }
-    
-    return (
-      <button
-        onClick={handleStartGame}
-        disabled={disabled}
-        className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-md disabled:bg-gray-600 disabled:cursor-not-allowed"
-      >
-        {buttonText}
-      </button>
-    );
   };
 
+  // Main lobby content
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4">
-      <h1 className="text-4xl font-bold mb-8">BlockBlast Multiplayer</h1>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6 text-center">Multiplayer Lobby</h1>
       
+      {renderConnectionStatus()}
+
       {error && (
-        <div className="bg-red-500/20 border border-red-500 rounded-md p-3 mb-6 w-full max-w-md">
-          <p className="text-red-300">{error}</p>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <span className="block sm:inline">{error}</span>
         </div>
       )}
-      
-      {!isConnected ? (
-        <div className="text-center">
-          <p className="mb-4">Connecting to server...</p>
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        </div>
-      ) : !roomInfo ? (
-        <div className="w-full max-w-md space-y-6">
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <div className="mb-4">
-              <label htmlFor="username" className="block text-sm font-medium mb-1">
-                Your Username
-              </label>
-              <input
-                type="text"
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-700 rounded-md border border-gray-600 text-white"
-                placeholder="Enter your username"
-              />
-            </div>
-            
-            <button
-              onClick={handleCreateRoom}
-              className="w-full py-2 px-4 mb-3 bg-blue-600 hover:bg-blue-700 rounded-md"
-            >
-              Create New Game
-            </button>
-            
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-600"></div>
-              </div>
-              <div className="relative flex justify-center">
-                <span className="px-2 bg-gray-800 text-gray-400 text-sm">or join existing</span>
-              </div>
-            </div>
-            
-            <div className="mb-4">
-              <label htmlFor="roomCode" className="block text-sm font-medium mb-1">
-                Room Code
-              </label>
-              <input
-                type="text"
-                id="roomCode"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                className="w-full px-4 py-2 bg-gray-700 rounded-md border border-gray-600 text-white"
-                placeholder="Enter room code"
-              />
-            </div>
-            
-            <button
-              onClick={handleJoinRoom}
-              disabled={isJoining}
-              className="w-full py-2 px-4 bg-green-600 hover:bg-green-700 rounded-md disabled:bg-gray-600 disabled:cursor-not-allowed"
-            >
-              {isJoining ? 'Joining...' : 'Join Game'}
-            </button>
-          </div>
+
+      {/* Room display or join/create form */}
+      {roomInfo ? (
+        <div className="bg-gray-100 p-6 rounded-lg shadow-md">
+          <h2 className="text-2xl font-bold mb-4">Room: {roomInfo.roomCode}</h2>
           
-          <Link href="/" className="block text-center text-gray-400 hover:text-white">
-            Back to Main Menu
-          </Link>
-        </div>
-      ) : (
-        <div className="w-full max-w-md bg-gray-800 p-6 rounded-lg shadow-lg">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold">Room: {roomInfo.roomCode}</h2>
-            <p className="text-gray-400">Share this code with your opponent</p>
-          </div>
-          
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2">Players:</h3>
+          <div className="mb-4">
+            <h3 className="text-xl font-semibold mb-2">Players:</h3>
             <ul className="space-y-2">
               {roomInfo.players.map((player) => (
-                <li key={player.id} className="flex items-center justify-between bg-gray-700 p-3 rounded-md">
-                  <div className="flex items-center space-x-2">
-                    <span>{player.username}</span>
-                    {player.isHost && (
-                      <span className="text-xs bg-yellow-600 px-2 py-0.5 rounded-full">Host</span>
-                    )}
+                <li key={player.id} className="flex items-center justify-between">
+                  <div>
+                    {player.username} {player.isHost && <span className="text-blue-500">(Host)</span>}
                   </div>
-                  <span className={`px-2 py-1 rounded ${player.isReady ? 'bg-green-600' : 'bg-gray-600'}`}>
-                    {player.isReady ? 'Ready' : 'Not Ready'}
-                  </span>
+                  <div>
+                    {player.isReady ? 
+                      <span className="text-green-500">Ready</span> : 
+                      <span className="text-red-500">Not Ready</span>
+                    }
+                  </div>
                 </li>
               ))}
             </ul>
           </div>
           
-          <div className="flex space-x-3">
+          <div className="flex flex-col sm:flex-row gap-3 justify-between">
+            {/* Show ready/unready button to all players */}
             <button
               onClick={handleToggleReady}
-              disabled={isStarting}
-              className={`flex-1 py-2 px-4 rounded-md ${
-                roomInfo.players.find(p => p.username === username)?.isReady
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-green-600 hover:bg-green-700'
-              } ${isStarting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`px-4 py-2 rounded ${
+                roomInfo.players.find(p => p.id === socket?.id)?.isReady
+                  ? 'bg-yellow-500 hover:bg-yellow-600'
+                  : 'bg-green-500 hover:bg-green-600'
+              } text-white font-semibold`}
+              disabled={roomInfo.gameState !== 'waiting'}
             >
-              {roomInfo.players.find(p => p.username === username)?.isReady
-                ? 'Cancel Ready'
-                : 'Ready Up'}
+              {roomInfo.players.find(p => p.id === socket?.id)?.isReady ? 'Not Ready' : 'Ready'}
             </button>
             
-            {renderStartButton()}
+            {/* Show start game button only to host */}
+            {roomInfo.players.find(p => p.id === socket?.id)?.isHost && (
+              <button
+                onClick={handleStartGame}
+                className="px-4 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white font-semibold"
+                disabled={
+                  isStarting ||
+                  roomInfo.gameState !== 'waiting' ||
+                  roomInfo.players.length < 2 ||
+                  !roomInfo.players.every(p => p.isReady)
+                }
+              >
+                {isStarting ? 'Starting...' : 'Start Game'}
+              </button>
+            )}
+            
+            {/* Leave room button */}
+            <button
+              onClick={handleLeaveRoom}
+              className="px-4 py-2 rounded bg-red-500 hover:bg-red-600 text-white font-semibold"
+            >
+              Leave Room
+            </button>
           </div>
-          
-          <button
-            onClick={handleLeaveRoom}
-            disabled={isStarting}
-            className={`w-full mt-4 py-2 px-4 bg-gray-600 hover:bg-gray-700 rounded-md ${
-              isStarting ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            Leave Room
-          </button>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Create room form */}
+          <div className="bg-gray-100 p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-bold mb-4">Create a Room</h2>
+            <div className="mb-4">
+              <label htmlFor="createUsername" className="block mb-2 font-medium">
+                Your Username
+              </label>
+              <input
+                id="createUsername"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter username"
+                disabled={isJoining || !isConnected}
+              />
+            </div>
+            <button
+              onClick={handleCreateRoom}
+              className="w-full px-4 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white font-semibold"
+              disabled={isJoining || !isConnected}
+            >
+              {isJoining ? 'Creating...' : 'Create Room'}
+            </button>
+          </div>
+
+          {/* Join room form */}
+          <div className="bg-gray-100 p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-bold mb-4">Join a Room</h2>
+            <div className="mb-4">
+              <label htmlFor="joinUsername" className="block mb-2 font-medium">
+                Your Username
+              </label>
+              <input
+                id="joinUsername"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter username"
+                disabled={isJoining || !isConnected}
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="roomCode" className="block mb-2 font-medium">
+                Room Code
+              </label>
+              <input
+                id="roomCode"
+                type="text"
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter room code"
+                maxLength={4}
+                disabled={isJoining || !isConnected}
+              />
+            </div>
+            <button
+              onClick={handleJoinRoom}
+              className="w-full px-4 py-2 rounded bg-green-500 hover:bg-green-600 text-white font-semibold"
+              disabled={isJoining || !isConnected}
+            >
+              {isJoining ? 'Joining...' : 'Join Room'}
+            </button>
+          </div>
         </div>
       )}
+
+      <div className="mt-8 text-center">
+        <Link href="/" className="text-blue-500 hover:underline">
+          Back to Home
+        </Link>
+      </div>
     </div>
   );
 } 

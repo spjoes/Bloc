@@ -3,8 +3,13 @@ import type { NextRequest } from 'next/server';
 
 // This function can be marked `async` if using `await` inside
 export function middleware(request: NextRequest) {
-  // Allow socket.io requests to pass through
-  if (request.nextUrl.pathname.startsWith('/api/socket')) {
+  // Special handling for socket.io connections
+  if (
+    request.nextUrl.pathname.startsWith('/api/socket') ||
+    request.nextUrl.pathname.includes('/socket.io')
+  ) {
+    // For socket.io requests, we need to pass them through without modification
+    // This includes the initial HTTP request and the WebSocket upgrade
     return NextResponse.next();
   }
   
@@ -14,9 +19,8 @@ export function middleware(request: NextRequest) {
 // Configure matcher to run this middleware only for specific paths
 export const config = {
   matcher: [
-    // Match all API routes except socket endpoints
-    '/api/((?!socket).*)',
     // Match socket.io paths
     '/api/socket/:path*',
+    '/socket.io/:path*',
   ],
 }; 

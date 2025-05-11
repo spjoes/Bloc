@@ -1,48 +1,85 @@
-import { Server as NetServer } from 'http';
-import { NextRequest } from 'next/server';
-import { Server as SocketIOServer } from 'socket.io';
-import type { NextApiResponseServerIO } from '../../../types/socket';
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
+import { Server as SocketIO } from 'socket.io';
 
-export async function GET(req: NextRequest) {
-  if (!req.body) {
-    return new Response('Socket IO API route', { status: 200 });
+// Store for global socket instance - needed because Vercel's serverless functions
+// won't keep in-memory state between invocations
+let io: SocketIO | null = null;
+// Global Map to store rooms - this is reset on Vercel's serverless environment on each deployment!
+// For production, you would need to use a database or Redis to persist this data
+const rooms = new Map();
+
+export async function GET(req: Request) {
+  // Return a simple status for health checks
+  if (!io) {
+    return new NextResponse('Socket.io server not initialized yet. Use POST to initialize.', { 
+      status: 200
+    });
   }
   
-  try {
-    const res: NextApiResponseServerIO = { socket: { server: {} } } as any;
-    const httpServer: NetServer = res.socket.server;
+  return new NextResponse('Socket.io server is running', { status: 200 });
+}
 
-    if (!httpServer.io) {
-      console.log('*First use, starting Socket.IO server...');
+// This endpoint is used to initialize the Socket.IO server
+export async function POST(req: Request) {
+  try {
+    // For App Router in Next.js 13/14, we need a different approach with socket.io
+    // In a serverless environment like Vercel, this will be recreated on each request
+    
+    // We'll setup the socket server if it's not already set up
+    if (!io) {
+      console.log('Initializing new Socket.IO server');
       
-      // Create a new Socket.IO server instance
-      const io = new SocketIOServer(httpServer, {
-        path: '/api/socket/io',
-        addTrailingSlash: false,
+      // Create socket.io instance with appropriate CORS
+      io = new SocketIO({
         cors: {
           origin: '*',
           methods: ['GET', 'POST'],
+          credentials: true
         },
+        path: '/api/socket/io',
+        // Add these options to help with Vercel's environment
+        transports: ['websocket', 'polling'],
+        allowEIO3: true,
+        pingTimeout: 60000,
       });
-
-      // Store the Socket.IO server instance on the HTTP server
-      (httpServer as any).io = io;
-
-      // Initialize Socket.IO event handlers
+      
+      // Initialize the socket server - add all event handlers
       initSocketServer(io);
+      
+      console.log('Socket.IO server initialized successfully');
+    } else {
+      console.log('Using existing Socket.IO server instance');
     }
-
-    return new Response('Socket IO initialized', { status: 200 });
+    
+    // Return a simple 200 response to indicate the socket server is running
+    return new NextResponse(JSON.stringify({ 
+      success: true, 
+      message: 'Socket.IO server initialized',
+      timestamp: new Date().toISOString()
+    }), { 
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
   } catch (err) {
     console.error('Socket initialization error:', err);
-    return new Response('Error initializing socket', { status: 500 });
+    return new NextResponse(JSON.stringify({ 
+      success: false, 
+      message: 'Error initializing Socket.IO server',
+      error: err instanceof Error ? err.message : String(err),
+      timestamp: new Date().toISOString()
+    }), { 
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
   }
 }
 
-function initSocketServer(io: SocketIOServer) {
-  // Store room information
-  const rooms = new Map();
-
+function initSocketServer(io: SocketIO) {
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
@@ -401,28 +438,28 @@ function generateRoomCode() {
 function generateRandomPieces(count = 3) {
   const pieces = [];
   
+  // Define standard Tetris-like pieces with consistent structure
+  const shapes = [
+    { shape: [[1,1,1], [0,1,0]], color: 'purple' }, // T shape
+    { shape: [[1,1], [1,1]], color: 'yellow' }, // Square
+    { shape: [[1,1,1,1]], color: 'cyan' }, // Line
+    { shape: [[1,1,0], [0,1,1]], color: 'red' }, // Z shape
+    { shape: [[0,1,1], [1,1,0]], color: 'green' }, // S shape
+    { shape: [[1,0], [1,0], [1,1]], color: 'orange' }, // L shape
+    { shape: [[0,1], [0,1], [1,1]], color: 'blue' }, // J shape
+    { shape: [[1]], color: 'teal' }, // 1x1 piece
+    { shape: [[1,1]], color: 'pink' }, // 2x1 horizontal piece
+    { shape: [[1],[1]], color: 'brown' } // 2x1 vertical piece
+  ];
+  
   for (let i = 0; i < count; i++) {
-    const shapes = [
-      [[1,1,1], [0,1,0]], // T shape
-      [[1,1], [1,1]], // Square
-      [[1,1,1,1]], // Line
-      [[1,1,0], [0,1,1]], // Z shape
-      [[0,1,1], [1,1,0]], // S shape
-      [[1,0], [1,0], [1,1]], // L shape
-      [[0,1], [0,1], [1,1]], // J shape
-      [[1]], // 1x1 piece
-      [[1,1]], // 2x1 horizontal piece
-      [[1],[1]] // 2x1 vertical piece
-    ];
-    
-    const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
-    const colors = ['blue', 'green', 'red', 'purple', 'orange', 'teal', 'yellow'];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    // Select a random piece from the predefined shapes
+    const randomPiece = shapes[Math.floor(Math.random() * shapes.length)];
     
     pieces.push({
       id: Date.now() + i, // Ensure unique IDs
-      shape: randomShape,
-      color: randomColor
+      shape: randomPiece.shape,
+      color: randomPiece.color
     });
   }
   
