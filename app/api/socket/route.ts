@@ -39,9 +39,10 @@ export async function POST(req: Request) {
         },
         path: '/api/socket/io',
         // Add these options to help with Vercel's environment
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'],
         allowEIO3: true,
         pingTimeout: 60000,
+        pingInterval: 25000
       });
       
       // Initialize the socket server - add all event handlers

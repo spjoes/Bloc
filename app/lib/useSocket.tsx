@@ -93,8 +93,16 @@ export default function useSocket() {
           reconnectionDelay: 1000,
           timeout: 20000,
           autoConnect: false, // We'll connect manually after server init
-          transports: ['websocket', 'polling']
+          transports: ['polling', 'websocket'] // Prioritize polling on Vercel
         });
+
+        // Add connection timeout
+        const connectionTimeout = setTimeout(() => {
+          if (socket && !socket.connected) {
+            console.warn('Socket connection timeout after 15 seconds');
+            setError('Connection timeout. Please refresh the page and try again.');
+          }
+        }, 15000);
 
         // Initialize the socket server if not already done
         if (!serverInitialized) {
@@ -107,6 +115,9 @@ export default function useSocket() {
         
         // Now connect the socket
         socket.connect();
+
+        // Clear timeout when component unmounts
+        return () => clearTimeout(connectionTimeout);
       } catch (err) {
         console.error('Error setting up socket:', err);
         setError('Failed to setup socket connection');
