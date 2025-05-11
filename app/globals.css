@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Game board fixed sizing and grid layout */
+.grid-cols-8 {
+  grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+}
+
+.grid-rows-8 {
+  grid-template-rows: repeat(8, minmax(0, 1fr)) !important;
+}
+
+/* Game board fixed sizing to prevent compaction */
+.board-grid {
+  display: grid !important;
+  grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(8, minmax(0, 1fr)) !important;
+  min-width: 260px !important;
+  min-height: 260px !important;
+  width: 260px !important;
+  height: 260px !important;
+}
+
+@media (min-width: 640px) {
+  .board-grid {
+    min-width: 332px !important;
+    min-height: 332px !important;
+    width: 332px !important;
+    height: 332px !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .board-grid {
+    min-width: 404px !important;
+    min-height: 404px !important;
+    width: 404px !important;
+    height: 404px !important;
+  }
+}
