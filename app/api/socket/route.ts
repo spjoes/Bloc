@@ -33,8 +33,9 @@ export async function POST(req: Request) {
       // Create socket.io instance with appropriate CORS
       io = new SocketIO({
         cors: {
-          origin: '*',
-          methods: ['GET', 'POST'],
+          origin: "*",
+          methods: ["GET", "POST", "OPTIONS"],
+          allowedHeaders: ["Content-Type", "Authorization"],
           credentials: true
         },
         path: '/api/socket/io',
@@ -42,7 +43,8 @@ export async function POST(req: Request) {
         transports: ['polling', 'websocket'],
         allowEIO3: true,
         pingTimeout: 60000,
-        pingInterval: 25000
+        pingInterval: 25000,
+        cookie: false
       });
       
       // Initialize the socket server - add all event handlers

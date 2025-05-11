@@ -31,6 +31,16 @@ export default function useSocket() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(globalRoomInfo);
   const [error, setError] = useState<string | null>(null);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
+
+  // If we've tried connecting multiple times without success, suggest an alternative
+  useEffect(() => {
+    if (connectionAttempts >= 3 && !isConnected) {
+      setError('We\'re having trouble connecting to the multiplayer server. ' +
+        'Vercel\'s serverless environment may not fully support WebSockets for this application. ' +
+        'Please try refreshing the page or try again later.');
+    }
+  }, [connectionAttempts, isConnected]);
 
   // Helper to update both local and global room info
   const updateRoomInfo = useCallback((newRoomInfo: RoomInfo | null) => {
@@ -89,11 +99,15 @@ export default function useSocket() {
         // Configure socket with reconnection options
         socket = io(socketUrl, {
           path: '/api/socket/io',
-          reconnectionAttempts: 5,
+          reconnectionAttempts: 10,
           reconnectionDelay: 1000,
-          timeout: 20000,
-          autoConnect: false, // We'll connect manually after server init
-          transports: ['polling', 'websocket'] // Prioritize polling on Vercel
+          reconnectionDelayMax: 5000,
+          randomizationFactor: 0.5,
+          timeout: 30000,
+          autoConnect: false,
+          transports: ['polling', 'websocket'],
+          forceNew: true,
+          withCredentials: false
         });
 
         // Add connection timeout
@@ -147,7 +161,15 @@ export default function useSocket() {
       function onConnectError(err: Error) {
         console.error('Connection error:', err);
         setIsConnected(false);
+        setConnectionAttempts(prev => prev + 1);
         setError(`Connection error: ${err.message}`);
+        
+        // After multiple failures, suggest refresh
+        if (socket && socket.io && socket.io.engine && socket.io.engine.transport && socket.io.engine.transport.name === 'polling') {
+          // Access reconnection attempts through a public property or increment a counter
+          console.log('Polling transport failing, suggesting page refresh');
+          setError('Having trouble connecting. Please try refreshing the page.');
+        }
       }
 
       function onReconnectAttempt(attemptNumber: number) {
