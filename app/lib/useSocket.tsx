@@ -39,17 +39,27 @@ export default function useSocket() {
   useEffect(() => {
     // Initialize socket connection if not already connected
     if (!socket) {
-      // In development, connect to the local server
+      // Get the appropriate socket URL based on environment
       const socketUrl = process.env.NODE_ENV === 'production' 
         ? window.location.origin
         : 'http://localhost:3000';
       
+      console.log('Connecting to socket at:', socketUrl);
+      
       // Configure socket with reconnection options
       socket = io(socketUrl, {
+        path: '/api/socket/io',  // Use the path that matches your API route
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
         timeout: 10000,
         autoConnect: true
+      });
+
+      // Request to initialize the socket.io server
+      fetch('/api/socket').then(res => {
+        console.log('Socket server initialization status:', res.status);
+      }).catch(err => {
+        console.error('Failed to initialize socket server:', err);
       });
     }
 
